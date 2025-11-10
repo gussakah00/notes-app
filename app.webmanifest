@@ -2,12 +2,12 @@
   "name": "Cerita di Sekitarmu",
   "short_name": "CeritaSekitar",
   "description": "Aplikasi berbagi cerita berbasis lokasi dengan PWA",
-  "start_url": "./",
+  "start_url": "/notes-app/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1976d2",
   "orientation": "portrait",
-  "scope": "./",
+  "scope": "/notes-app/",
   "categories": ["entertainment", "social"],
   "icons": [
     {

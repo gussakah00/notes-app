@@ -1,5 +1,3 @@
-// src/scripts/utils/sw-register.js
-
 class ServiceWorkerManager {
   constructor() {
     this.registration = null;
@@ -70,9 +68,9 @@ class ServiceWorkerManager {
       const swUrl = this.getSWUrl();
       console.log("📁 Registering Service Worker:", swUrl);
 
-      // Register Service Worker dengan options yang benar
+      // Register Service Worker dengan scope yang benar
       this.registration = await navigator.serviceWorker.register(swUrl, {
-        scope: "./",
+        scope: this.getSWScope(), // ✅ PERBAIKAN: Scope yang benar
         updateViaCache: "none",
       });
 
@@ -97,15 +95,45 @@ class ServiceWorkerManager {
       return "/sw.js";
     }
 
-    // Production - sesuaikan dengan GitHub Pages
+    // Production - GitHub Pages
     const isGitHubPages = window.location.hostname.includes("github.io");
     if (isGitHubPages) {
-      const repoName = window.location.pathname.split("/")[1] || "revisi2";
+      // Ambil nama repo dari pathname
+      const pathSegments = window.location.pathname
+        .split("/")
+        .filter((segment) => segment);
+      const repoName = pathSegments[0] || "notes-app";
+
+      // ✅ FIX: Gunakan path absolut dengan repo name
       return `/${repoName}/sw.js`;
     }
 
-    // Default
+    // Default untuk production
     return "/sw.js";
+  }
+
+  getSWScope() {
+    // Tentukan scope berdasarkan environment
+    if (
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+    ) {
+      return "/"; // ✅ Scope root di localhost
+    }
+
+    // GitHub Pages - scope harus sesuai dengan base path
+    const isGitHubPages = window.location.hostname.includes("github.io");
+    if (isGitHubPages) {
+      const pathSegments = window.location.pathname
+        .split("/")
+        .filter((segment) => segment);
+      const repoName = pathSegments[0] || "notes-app";
+
+      // ✅ FIX: Scope harus /repo-name/
+      return `/${repoName}/`;
+    }
+
+    return "/"; // Default scope
   }
 
   async waitForActivation() {
@@ -185,7 +213,22 @@ class ServiceWorkerManager {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       console.log("🔄 Controller Service Worker berubah");
       this.isActive = true;
+
+      // ✅ Tampilkan pesan update tersedia
+      if (this.isUpdateAvailable) {
+        console.log(
+          "🔄 Update tersedia! Refresh halaman untuk mendapatkan versi terbaru."
+        );
+        this.showUpdateNotification();
+      }
     });
+  }
+
+  showUpdateNotification() {
+    // Optional: Tampilkan UI notification
+    if (typeof window.showUpdateNotification === "function") {
+      window.showUpdateNotification();
+    }
   }
 
   async forceUpdate() {
@@ -238,13 +281,31 @@ export const getSWStatus = () => swManager.getStatus();
 
 // Auto init ketika module di-load
 if (typeof window !== "undefined") {
-  // Tunggu sampai DOM ready
+  // Tunggu sampai DOM ready + additional delay untuk stability
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(() => swManager.init(), 1000);
+      setTimeout(() => {
+        console.log("🚀 Initializing Service Worker...");
+        swManager.init().then((success) => {
+          if (success) {
+            console.log("🎉 Service Worker initialization completed");
+          } else {
+            console.log("⚠️ Service Worker initialization failed");
+          }
+        });
+      }, 2000); // ✅ Delay lebih lama untuk stability
     });
   } else {
-    setTimeout(() => swManager.init(), 1000);
+    setTimeout(() => {
+      console.log("🚀 Initializing Service Worker...");
+      swManager.init().then((success) => {
+        if (success) {
+          console.log("🎉 Service Worker initialization completed");
+        } else {
+          console.log("⚠️ Service Worker initialization failed");
+        }
+      });
+    }, 2000);
   }
 }
 

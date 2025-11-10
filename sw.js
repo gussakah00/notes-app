@@ -1,90 +1,60 @@
-// sw.js - Service Worker dengan path yang benar
-const CACHE_NAME = "cerita-sekitarmu-v2.2.0";
-const APP_SHELL_CACHE = "app-shell-v2";
+// sw.js - Service Worker untuk GitHub Pages: gussakah00/notes-app
+const CACHE_NAME = "notes-app-v3.0.0";
+const APP_SHELL_CACHE = "app-shell-v3";
 
-// HANYA file yang 100% pasti ada dan penting
+// ✅ FIX: Base path SESUAI REPO ANDA
+const BASE_PATH = "/notes-app";
+
+// ✅ FIX: Essential files dengan path yang benar
 const ESSENTIAL_FILES = [
-  "./",
-  "./index.html",
-  "./main.bundle.js",
-  "./styles.css",
-  "./manifest.json", // ✅ GUNAKAN manifest.json bukan app.webmanifest
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/main.bundle.js`,
+  `${BASE_PATH}/styles.css`,
+  `${BASE_PATH}/manifest.json`,
 ];
 
-// File optional - jika gagal cache, tidak masalah
+// ✅ FIX: Optional files
 const OPTIONAL_FILES = [
-  "./favicon.png",
-  "./icons/icon-72x72.png",
-  "./icons/icon-96x96.png",
-  "./icons/icon-128x128.png",
-  "./icons/icon-144x144.png",
-  "./icons/icon-152x152.png",
-  "./icons/icon-192x192.png",
-  "./icons/icon-384x384.png",
-  "./icons/icon-512x512.png",
+  `${BASE_PATH}/favicon.png`,
+  `${BASE_PATH}/icons/icon-72x72.png`,
+  `${BASE_PATH}/icons/icon-96x96.png`,
+  `${BASE_PATH}/icons/icon-128x128.png`,
+  `${BASE_PATH}/icons/icon-144x144.png`,
+  `${BASE_PATH}/icons/icon-152x152.png`,
+  `${BASE_PATH}/icons/icon-192x192.png`,
+  `${BASE_PATH}/icons/icon-384x384.png`,
+  `${BASE_PATH}/icons/icon-512x512.png`,
 ];
 
 // === INSTALL ===
 self.addEventListener("install", (event) => {
-  console.log("🔧 Service Worker: Memulai instalasi...");
+  console.log("🔧 Service Worker: Installing for", BASE_PATH);
 
   // Skip waiting - langsung aktifkan SW baru
   event.waitUntil(self.skipWaiting());
 
-  // Cache App Shell dengan error handling yang robust
+  // Cache App Shell
   event.waitUntil(
     (async () => {
       try {
         const cache = await caches.open(APP_SHELL_CACHE);
-        console.log("💾 Membuka cache...");
+        console.log("💾 Opening cache...");
 
-        // 1. Cache ESSENTIAL files - harus berhasil
-        console.log("📦 Caching file essential...");
-        const essentialResults = await Promise.allSettled(
-          ESSENTIAL_FILES.map((url) =>
-            cache.add(url).catch((err) => {
-              console.warn(`⚠️ Gagal cache essential ${url}:`, err.message);
-              return null; // Return null instead of throwing
-            })
-          )
-        );
+        // Cache essential files
+        console.log("📦 Caching essential files...");
+        for (const url of ESSENTIAL_FILES) {
+          try {
+            await cache.add(url);
+            console.log(`✅ Cached: ${url}`);
+          } catch (err) {
+            console.warn(`❌ Failed to cache: ${url}`, err.message);
+          }
+        }
 
-        // Log results
-        const essentialSuccess = essentialResults.filter(
-          (r) => r.status === "fulfilled" && r.value !== null
-        ).length;
-
-        console.log(
-          `✅ ${essentialSuccess}/${ESSENTIAL_FILES.length} file essential berhasil di-cache`
-        );
-
-        // 2. Cache OPTIONAL files - boleh gagal
-        console.log("📦 Caching file optional...");
-        const optionalResults = await Promise.allSettled(
-          OPTIONAL_FILES.map(async (url) => {
-            try {
-              await cache.add(url);
-              console.log(`✅ Berhasil cache optional: ${url}`);
-              return { success: true, url };
-            } catch (err) {
-              console.warn(`⚠️ Gagal cache optional ${url}:`, err.message);
-              return { success: false, url, error: err.message };
-            }
-          })
-        );
-
-        const optionalSuccess = optionalResults.filter(
-          (r) => r.status === "fulfilled" && r.value.success
-        ).length;
-
-        console.log(
-          `📊 Cache result: ${essentialSuccess}/${ESSENTIAL_FILES.length} essential, ${optionalSuccess}/${OPTIONAL_FILES.length} optional berhasil`
-        );
-
-        console.log("🎉 Proses caching selesai");
+        console.log("🎉 Caching completed");
       } catch (error) {
-        console.error("❌ Error utama saat caching:", error);
-        // JANGAN reject - biarkan SW tetap install meski caching gagal
+        console.error("❌ Cache error:", error);
       }
     })()
   );
@@ -92,7 +62,7 @@ self.addEventListener("install", (event) => {
 
 // === ACTIVATE ===
 self.addEventListener("activate", (event) => {
-  console.log("🔄 Service Worker: Mengaktifkan...");
+  console.log("🔄 Service Worker: Activating...");
 
   event.waitUntil(
     (async () => {
@@ -104,17 +74,17 @@ self.addEventListener("activate", (event) => {
         const cacheNames = await caches.keys();
         await Promise.all(
           cacheNames.map(async (cacheName) => {
-            if (cacheName !== APP_SHELL_CACHE && cacheName !== CACHE_NAME) {
-              console.log(`🗑️ Menghapus cache lama: ${cacheName}`);
+            if (cacheName !== APP_SHELL_CACHE) {
+              console.log(`🗑️ Deleting old cache: ${cacheName}`);
               await caches.delete(cacheName);
             }
           })
         );
       } catch (error) {
-        console.warn("⚠️ Error cleaning old caches:", error);
+        console.warn("⚠️ Error cleaning caches:", error);
       }
 
-      console.log("✅ Service Worker aktif dan siap!");
+      console.log("✅ Service Worker activated!");
     })()
   );
 });
@@ -128,7 +98,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Skip API calls - langsung fetch dari network
+  // Skip API calls
   if (url.href.includes("story-api.dicoding.dev")) {
     return;
   }
@@ -141,128 +111,52 @@ self.addEventListener("fetch", (event) => {
   // Handle request
   event.respondWith(
     (async () => {
-      try {
-        // Coba cache dulu
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+      // Try cache first
+      const cachedResponse = await caches.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-        // Kalau tidak ada di cache, fetch dari network
+      try {
+        // Try network
         const networkResponse = await fetch(request);
 
-        // Cache response yang valid (kecuali API calls)
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          !url.href.includes("story-api.dicoding.dev")
-        ) {
-          try {
-            const cache = await caches.open(APP_SHELL_CACHE);
-            await cache.put(request, networkResponse.clone());
-          } catch (cacheError) {
-            console.warn(`⚠️ Gagal menyimpan ke cache: ${url.pathname}`);
-          }
+        // Cache successful responses
+        if (networkResponse.status === 200) {
+          const cache = await caches.open(APP_SHELL_CACHE);
+          cache.put(request, networkResponse.clone());
         }
 
         return networkResponse;
       } catch (error) {
-        console.log(`❌ Network error: ${url.pathname}`);
+        // Network failed - return fallback
+        console.log(`🌐 Network failed: ${url.pathname}`);
 
-        // Fallback untuk HTML requests
+        // For HTML requests, return index.html
         if (
           request.destination === "document" ||
           request.headers.get("accept")?.includes("text/html")
         ) {
-          const fallback = await caches.match("./index.html");
-          if (fallback) {
-            return fallback;
-          }
+          const fallback = await caches.match(`${BASE_PATH}/index.html`);
+          if (fallback) return fallback;
         }
 
         // Return offline page
-        return createOfflineResponse();
+        return new Response(
+          `
+          <html>
+            <head><title>Offline</title></head>
+            <body>
+              <h1>Anda sedang offline</h1>
+              <p>Aplikasi membutuhkan koneksi internet.</p>
+            </body>
+          </html>
+          `,
+          { headers: { "Content-Type": "text/html" } }
+        );
       }
     })()
   );
 });
 
-// Helper function untuk create offline response
-function createOfflineResponse() {
-  return new Response(
-    `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Anda Sedang Offline - Cerita di Sekitarmu</title>
-        <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            text-align: center; 
-            padding: 50px; 
-            background: #f5f5f5;
-          }
-          .container { 
-            background: white; 
-            padding: 40px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 500px;
-            margin: 0 auto;
-          }
-          h1 { color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>📶 Anda Sedang Offline</h1>
-          <p>Aplikasi membutuhkan koneksi internet untuk mengambil data cerita terbaru.</p>
-          <p>Silakan periksa koneksi internet Anda dan coba lagi.</p>
-        </div>
-      </body>
-    </html>
-  `,
-    {
-      status: 503,
-      statusText: "Service Unavailable",
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
-    }
-  );
-}
-
-// === PUSH NOTIFICATIONS ===
-self.addEventListener("push", (event) => {
-  console.log("📨 Menerima push notification");
-
-  const options = {
-    body: "Ada cerita baru di sekitarmu! 📖",
-    icon: "./icons/icon-192x192.png",
-    badge: "./icons/icon-72x72.png",
-    tag: "cerita-notification",
-  };
-
-  event.waitUntil(
-    self.registration.showNotification("Cerita di Sekitarmu", options)
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  console.log("👆 Notification diklik");
-  event.notification.close();
-
-  event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clients) => {
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin)) {
-          return client.focus();
-        }
-      }
-      return self.clients.openWindow("./");
-    })
-  );
-});
-
-console.log("🚀 Service Worker loaded dan siap! Versi 2.2.0");
+console.log("🚀 Service Worker loaded for:", BASE_PATH);
